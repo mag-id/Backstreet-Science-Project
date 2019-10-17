@@ -7,7 +7,10 @@ import click
 import tempfile
 
 
-
+'''
+Функция принимает на вход путь до файла mol2, 
+создает генератор, возвращающий название следующей молекулы
+'''
 def conformer_detector(way):
     with open(way, 'r') as f:
         lines = f.readlines()
@@ -17,7 +20,11 @@ def conformer_detector(way):
                 i += 1
                 yield (conformer)
 
-
+'''
+Функция принимает на вход путь до файла mol2, 
+создает генератор, возвращающий массив кортежей
+с названием и коорднатами атомов каждой молекулы
+'''
 def structure_detector(way):
     with open(way, 'r') as f:
         lines = f.readlines()
