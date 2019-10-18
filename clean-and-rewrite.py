@@ -133,7 +133,7 @@ def hardcheck(template=list(), compared=list(), logging_mode=False):
             if equality == '<<':
                 yield index
             elif equality == '>>':
-                raise ValueError('less labels at ' + message + ', try logging_mode=True')
+                raise IndexError('less labels at ' + message + ', try logging_mode=True')
             elif equality == '!=':
                 raise ValueError('different labels at ' + message + ', try logging_mode=True')
 
