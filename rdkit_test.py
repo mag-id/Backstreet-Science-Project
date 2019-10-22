@@ -34,14 +34,11 @@ def write_xyz(xyz: pd.DataFrame, file_name: str, n_atoms: int):
     n_atoms: molecules len
     """
     with open(file_name, 'w+') as f:
-        f.write(str(n_atoms) + '\n')
-        # f.writelines([
-        #     '\n',
-        #     str(xyz['Atom']), ' ',
-        #     str(xyz['x']), ' ',
-        #     str(xyz['y']), ' ',
-        #     str(xyz['z'])
-        # ])
+        f.write(str(n_atoms) + '\n\n')
+        for index, row in xyz.iterrows():
+            line = '{} {} {} {}\n'.format(row['Atom'], row['x'], row['y'],
+                                          row['z'])
+            f.write(line)
 
 
 #TODO fixit and charge
@@ -61,22 +58,17 @@ def xyz_to_mop(xyz: pd.DataFrame, file_name: str, charge=0):
     with open(file_name, 'w+') as f:
         f.write(' AUX LARGE COSCCH NSPA=92 EPS=78.4 PM6-DH2X CHARGE=' +
                 str(charge) + '\n')
-        _ = pd.Series([1 for i in range(len(xyz.loc[:, ('z')]))])
-        # f.writelines([
-        #     '\n',
-        #     str(xyz['Atom']), ' ',
-        #     str(xyz['x']), ' ',
-        #     str(_), ' ',
-        #     str(xyz['y']), ' ',
-        #     str(_), ' ',
-        #     str(xyz['z']), ' ',
-        #     str(_)
-        # ])
+        f.write('generated mop input\n\n')
+        for index, row in xyz.iterrows():
+            line = '{}\t{}\t1\t{}\t1\t{}\t1\n'.format(row['Atom'], row['x'],
+                                                      row['y'], row['z'])
+            f.write(line)
         f.write('\n')
         f.write('  OLDGEO AUX LARGE COSCCH NSPA=92 EPS=78.4 PM6-DH2X CHARGE=' +
                 str(charge) + '  FORCE THERMO\n\n\n')
         f.write(' OLDGEO AUX LARGE COSCCH NSPA=92 EPS=78.4 PM6-DH2X CHARGE=' +
-                str(charge) + ' COSWRT\n')
+                str(charge) + ' COSWRT\n\n')
+
 
 #TODO write it
 def conformers_rmsd_matrix():
@@ -84,21 +76,23 @@ def conformers_rmsd_matrix():
 
 
 @click.command()
-@click.option('--input', help='mol input file', prompt='Input file')
+@click.option('--input',
+              help='mol input file',
+              prompt='Input file',
+              type=click.Path(exists=True))
 # @click.option('--smiles',
 #                 help='Input smiles string',
 #                 default=None,
 #                 prompt='smiles string')
 @click.option('--output',
               help='out files format',
-              default='sdf',
+              type=click.Choice(['sdf', 'xyz', 'mop'], case_sensitive=False),
               prompt='out files format')
 @click.option('-n',
               help='Conformers number',
               default=50,
               prompt='Conformers number')
 @click.option('-m', help='Max cores', default=1)
-@pysnooper.snoop()
 def main(input, output, n, m):
     file_name = 'test'
     if input or smiles:
