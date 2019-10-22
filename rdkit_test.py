@@ -11,9 +11,8 @@ from rdkit.Chem import AllChem
 
 
 def generate_conformations_RDkit(mol1, n, m):
-    ids = AllChem.EmbedMultipleConfs(mol1,
-                                     numConfs=n,
-                                     numThreads=m)
+    # ids - list with conformer indexes
+    ids = AllChem.EmbedMultipleConfs(mol1, numConfs=n, numThreads=m)
     return mol1, list(ids)
 
 
@@ -23,6 +22,7 @@ def xyz_generator(atoms_names: tuple, coord: list) -> pd.DataFrame:
     return df
 
 
+#TODO fixit
 def write_xyz(xyz: pd.DataFrame, file_name: str, n_atoms: int):
     """
     Write XYZ file
@@ -44,7 +44,20 @@ def write_xyz(xyz: pd.DataFrame, file_name: str, n_atoms: int):
         # ])
 
 
+#TODO fixit and charge
 def xyz_to_mop(xyz: pd.DataFrame, file_name: str, charge=0):
+    """
+    Write mop file
+
+    Arguments
+    ---------
+    xyz: pd.DataFrame
+        contains cartesian coordinates and atoms labels
+    file_name: str
+        path to new file
+    charge: int (0)
+        molecule charge
+    """
     with open(file_name, 'w+') as f:
         f.write(' AUX LARGE COSCCH NSPA=92 EPS=78.4 PM6-DH2X CHARGE=' +
                 str(charge) + '\n')
@@ -56,7 +69,7 @@ def xyz_to_mop(xyz: pd.DataFrame, file_name: str, charge=0):
         #     str(_), ' ',
         #     str(xyz['y']), ' ',
         #     str(_), ' ',
-        #     str(xyz['z']), ' ', 
+        #     str(xyz['z']), ' ',
         #     str(_)
         # ])
         f.write('\n')
@@ -65,45 +78,11 @@ def xyz_to_mop(xyz: pd.DataFrame, file_name: str, charge=0):
         f.write(' OLDGEO AUX LARGE COSCCH NSPA=92 EPS=78.4 PM6-DH2X CHARGE=' +
                 str(charge) + ' COSWRT\n')
 
-
+#TODO write it
 def conformers_rmsd_matrix():
     pass
 
 
-"""@click.command()
-@click.argument('smi_input_file', nargs=-1)
-@click.argument('sdf_output_file')
-@click.option('-n', default=1, help='number of conformers')
-def main(smi_input_file, sdf_output_file, n):
-    n = int(n)
-    #TODO Исправить
-    print(sdf_output_file, smi_input_file)
-    f = open(sdf_output_file, "w+")
-    f.close()
-
-    writer = Chem.SDWriter(sdf_output_file)
-
-    # suppl = Chem.SmilesMolSupplier(smi_input_file, titleLine=False)
-
-    with futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-        # Submit a set of asynchronous jobs
-        jobs = []
-        for mol in suppl:
-            if mol:
-                job = executor.submit(generate_conformations, mol, n)
-                jobs.append(job)
-
-        widgets = [
-            "Generating conformations; ",
-            progressbar.Percentage(), " ",
-            progressbar.ETA(), " ",
-            progressbar.Bar()
-        ]
-        pbar = progressbar.ProgressBar(widgets=widgets, maxval=len(jobs))
-        for job in pbar(futures.as_completed(jobs)):
-            mol, ids = job.result()
-            for id in ids:
-                writer.write(mol, confId=id)"""
 @click.command()
 @click.option('--input', help='mol input file', prompt='Input file')
 # @click.option('--smiles',
@@ -111,13 +90,13 @@ def main(smi_input_file, sdf_output_file, n):
 #                 default=None,
 #                 prompt='smiles string')
 @click.option('--output',
-                help='out files format',
-                default='sdf',
-                prompt='out files format')
+              help='out files format',
+              default='sdf',
+              prompt='out files format')
 @click.option('-n',
-                help='Conformers number',
-                default=50,
-                prompt='Conformers number')
+              help='Conformers number',
+              default=50,
+              prompt='Conformers number')
 @click.option('-m', help='Max cores', default=1)
 @pysnooper.snoop()
 def main(input, output, n, m):
@@ -133,12 +112,15 @@ def main(input, output, n, m):
         # Add Hydrogens
         mol1 = Chem.AddHs(mol)
         AllChem.EmbedMolecule(mol1)
+
+        # Molecule optimiztaion
         i = 0
         while AllChem.MMFFOptimizeMolecule(mol1) != 0:
             i += 1
             if i >= 25:
                 raise ('MMFF94 optimization had a bad end')
 
+        # Conformers generation
         mol1, ids = generate_conformations_RDkit(mol1=mol1, n=n, m=m)
 
         pwd = os.getcwd()
@@ -147,6 +129,7 @@ def main(input, output, n, m):
         else:
             os.mkdir(os.path.join(pwd, file_name))
 
+        # writers
         if output == 'sdf':
             sdf_output_file = os.path.join(pwd, file_name, file_name) + '.sdf'
             open(sdf_output_file, 'a').close()
@@ -155,6 +138,7 @@ def main(input, output, n, m):
                 writer.write(mol1, confId=i)
             writer.close()
 
+        # Does not WORK
         if output == 'xyz':
             atoms = [atom.GetSymbol() for atom in mol1.GetAtoms()]
             n_atoms = len(atoms)
