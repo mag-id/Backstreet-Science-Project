@@ -1,13 +1,12 @@
 import ntpath
 import os
-import sys
 from shutil import copyfile
 import pandas as pd
-import pysnooper
 
 import click
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from rdkit.Chem import Draw
 
 
 def generate_conformations_RDkit(mol1, n, m):
@@ -92,7 +91,7 @@ def conformers_rmsd_matrix():
               help='Conformers number',
               default=50,
               prompt='Conformers number')
-@click.option('-m', help='Max cores', default=1)
+@click.option('-m', help='Max cores', prompt='Max cores', default=1)
 def main(input, output, n, m):
     file_name = 'test'
     if input or smiles:
@@ -114,29 +113,32 @@ def main(input, output, n, m):
             if i >= 25:
                 raise ('MMFF94 optimization had a bad end')
 
-        # Conformers generation
-        mol1, ids = generate_conformations_RDkit(mol1=mol1, n=n, m=m)
-
         pwd = os.getcwd()
         if os.path.exists(os.path.join(pwd, file_name)):
             pass
         else:
             os.mkdir(os.path.join(pwd, file_name))
 
-        # writers
+        path = os.path.join(pwd, file_name, file_name)
+
+        mol2 = Chem.RemoveHs(mol1)
+        AllChem.Compute2DCoords(mol2)
+        Draw.MolToFile(mol2, path + '.png', size=(300, 300))
+
+        # Conformers generation
+        mol1, ids = generate_conformations_RDkit(mol1=mol1, n=n, m=m)
+
         if output == 'sdf':
-            sdf_output_file = os.path.join(pwd, file_name, file_name) + '.sdf'
+            sdf_output_file = path + '.sdf'
             open(sdf_output_file, 'a').close()
             writer = Chem.SDWriter(sdf_output_file)
             for i in ids:
                 writer.write(mol1, confId=i)
             writer.close()
 
-        # Does not WORK
         if output == 'xyz':
             atoms = [atom.GetSymbol() for atom in mol1.GetAtoms()]
             n_atoms = len(atoms)
-            path = os.path.join(pwd, file_name, file_name)
             for i in range(len(ids)):
                 file_name = path + f'{i}.xyz'
                 coord = xyz_generator(
@@ -146,13 +148,13 @@ def main(input, output, n, m):
 
         if output == 'mop':
             atoms = [atom.GetSymbol() for atom in mol1.GetAtoms()]
-            path = os.path.join(pwd, file_name, file_name)
             for i in range(len(ids)):
                 file_name = path + f'{i}.mop'
                 coord = xyz_generator(
                     atoms_names=atoms,
                     coord=mol1.GetConformer(i).GetPositions())
                 xyz_to_mop(xyz=coord, file_name=file_name)
+
     else:
         raise ('Please choose a input file or smiles')
 
