@@ -69,9 +69,10 @@ def json_load(path: str) -> dict:
 
 # TODO: to refactor out-to-mop and clean-and-rewrite funcs
 
+import pandas
+import copy
 import os
 import re
-import pandas
 
 
 def find(directory, slash='/', pattern=r'.+\.out'):
@@ -141,107 +142,6 @@ def extract(path,
     return pandas.DataFrame(rows, columns=columns)
 
 
-def hardcheck(template=list(), compared=list(), logging_mode=False):
-    """
-    Function is check elements of the template's list and compared list,
-    returns index of the missing element of the template's list, int.
-
-    Raises ValueError when:
-    1) compared list has less element, than template
-    2) element in lists are different
-
-    logging_mode=True print all cases in format 'index, element, equality, element,' where equality means:
-    '<<' that the compared element is redundant and template element is absent
-    '>>' the template element is redundant, while compared element is absent
-    '!=' the elements are different
-    '==' the elements are the same
-
-    :param template: pandas DataFrame
-    :param compared: pandas DataFrame
-    :param logging_mode: print log, disable ValueError
-    :return: index, int
-    """
-
-    template_label = str
-    compared_label = str
-    equality = str
-
-    if len(template) >= len(compared):
-        indexes = range(len(template))
-    else:
-        indexes = range(len(compared))
-
-    for index in indexes:
-        try:
-            template_label = template[index]
-            compared_label = compared[index]
-
-            if template_label != compared_label:
-                equality = '!='
-
-            else:
-                equality = '=='
-
-        except IndexError:
-
-            if len(template) > len(compared):
-                equality = '>>'
-                template_label = template[index]
-                compared_label = '*'
-
-            if len(template) < len(compared):
-                equality = '<<'
-                template_label = '*'
-                compared_label = compared[index]
-
-        message = '{} {} {} {}'.format(index, template_label, equality, compared_label)
-
-        if logging_mode is True:
-            print(message)
-        else:
-            if equality == '<<':
-                yield index
-            elif equality == '>>':
-                raise IndexError('less labels at ' + message + ', try logging_mode=True')
-            elif equality == '!=':
-                raise ValueError('different labels at ' + message + ', try logging_mode=True')
-
-
-def rewrite(cartesian, path, pattern):
-    """
-    Function rewrites .mop file using given cartesian coordinates
-
-    :param cartesian: cartesian: pandas DataFrame from extract() function
-    :param path: path to file, string
-    :param pattern: regular expression for parsing lines in cartesian block, raw string
-    :return: nothing
-    """
-    # Preparation
-    coordinates = 'x', 'y', 'z'
-    columns = {'1_1': 2, '1_2': 4, '1_3': 6}
-    for coord in coordinates:
-        cartesian[coord] = cartesian[coord].astype(float)
-
-    cartesian = cartesian.round(decimals=4)
-    for column in columns:
-        cartesian.insert(columns[column], column, 1, True)
-
-    # rewrite .mop
-    flag = True
-    with open(path, 'r') as old, open(path + '_tmp', 'a') as new:
-        for line in old:
-            if re.match(pattern, line) is None:
-                new.write(line)
-            elif re.match(pattern, line) and flag is True:
-                new.writelines(cartesian.to_string(header=False, index=False))
-                new.write('\n')
-                flag = False
-
-    # Rewrite
-    os.remove(path)
-    os.rename(path + '_tmp', path)
-
-
 def save(cartesian, charge, name, comment='',
          mop_dir=str(os.getcwd()), csv_dir=str(os.getcwd()),
          mop_file=True, csv_file=True):
@@ -293,6 +193,242 @@ def save(cartesian, charge, name, comment='',
         cartesian.to_csv(csv_dir + name + '.csv')
 
 
+def softcheck(template=list(), compared=list(), logging_mode=False):
+    """
+    Function is check elements of the template's list and compared list,
+    returns list of the tuples with 'equality' (str) and 'index' (int) where:
+
+    logging_mode=True print all cases in format 'index, element, equality, element,' where equality means:
+    '<<' that the compared element is redundant and template element is absent
+    '>>' the template element is redundant, while compared element is absent
+    '!=' the elements are different
+    '==' the elements are the same
+
+    :param template: pandas DataFrame
+    :param compared: pandas DataFrame
+    :param logging_mode: print log
+    :return: list of the tuples with string and integer
+    """
+    template = copy.deepcopy(template)
+    compared = copy.deepcopy(compared)
+
+    if len(template) >= len(compared):
+        indexes = range(len(template))
+    else:
+        indexes = range(len(compared))
+
+    errors = list()
+
+    for index in indexes:
+        try:
+            if template[0] != compared[0]:
+                equality = '!='
+                template_label = template.pop(0)
+                compared_label = compared.pop(0)
+
+            else:
+                equality = '=='
+                template_label = template.pop(0)
+                compared_label = compared.pop(0)
+
+        except IndexError:
+
+            if len(template) > len(compared):
+                equality = '>>'
+                template_label = template.pop(0)
+                compared_label = '*'
+
+            else:
+                equality = '<<'
+                template_label = '*'
+                compared_label = compared.pop(0)
+
+        if equality != '==':
+            errors.append((equality, index))
+
+        if logging_mode is True:
+            print('{} {} {} {}'.format(index, template_label, equality, compared_label))
+
+    if errors is None:
+        return True
+    else:
+        return errors
+
+
+def hardcheck(template=list(), compared=list(), logging_mode=False):
+    """
+    Function is check elements of the template's list and compared list,
+    returns index of the missing element of the template's list, int.
+
+    Raises IndexError when compared list has less element, than template.
+    Raises ValueError when element in lists are different.
+
+    logging_mode=True print all cases in format 'index, element, equality, element,' where equality means:
+    '<<' that the compared element is redundant and template element is absent
+    '>>' the template element is redundant, while compared element is absent
+    '!=' the elements are different
+    '==' the elements are the same
+
+    :param template: pandas DataFrame
+    :param compared: pandas DataFrame
+    :param logging_mode: print log, disable ValueError and IndexError
+    :return: index, int
+    """
+
+    template_label = str
+    compared_label = str
+    equality = str
+
+    if len(template) >= len(compared):
+        indexes = range(len(template))
+    else:
+        indexes = range(len(compared))
+
+    for index in indexes:
+        try:
+            template_label = template[index]
+            compared_label = compared[index]
+
+            if template_label != compared_label:
+                equality = '!='
+
+            else:
+                equality = '=='
+
+        except IndexError:
+
+            if len(template) > len(compared):
+                equality = '>>'
+                template_label = template[index]
+                compared_label = '*'
+
+            if len(template) < len(compared):
+                equality = '<<'
+                template_label = '*'
+                compared_label = compared[index]
+
+        message = '{} {} {} {}'.format(index, template_label, equality, compared_label)
+
+        if logging_mode is True:
+            print(message)
+        else:
+            if equality == '<<':
+                yield index
+            elif equality == '>>':
+                raise IndexError('less labels at ' + message + ', try logging_mode=True')
+            elif equality == '!=':
+                raise ValueError('different labels at ' + message + ', try logging_mode=True')
+
+
+def atomdrop(template=pandas.DataFrame(), compared=pandas.DataFrame(), logging_mode=False):
+    """
+        Function is check elements of the template's list and compared list,
+        returns list with indexes (int) of the conflicting elements,
+        also can returns list with indexes (int) and False (bool) within,
+        if compared list has less element, than template.
+
+        logging_mode=True print all cases in format 'element, equality, element, template's index',
+        where equality means:
+            '<<' that the compared element is redundant and template element is absent
+            '>>' the template element is redundant, while compared element is absent
+            '!=' the elements are different
+            '==' the elements are the same
+
+        :param template: pandas DataFrame
+        :param compared: pandas DataFrame
+        :param logging_mode: print log, disable ValueError
+        :return: list with integers and bool within
+        """
+    # Initialize lists
+    template_atoms = list(template['atom_name'])
+    compared_atoms = list(compared['atom_name'])
+    errorlist = list()
+
+    # Define count
+    if len(template_atoms) >= len(compared_atoms):
+        indexes = len(template_atoms)
+    else:
+        indexes = len(compared_atoms)
+
+    # pop from stacks
+    for index in range(indexes):
+        try:
+            if template_atoms[0] == compared_atoms[0]:
+                arg_one = template_atoms.pop(0)
+                arg_two = '=='
+                arg_three = compared_atoms.pop(0)
+            else:
+                arg_one = template_atoms[0]
+                arg_two = '!='
+                arg_three = compared_atoms.pop(0)
+                errorlist.append(index)
+
+        # if template > compared list: yield False without IndexError
+        except IndexError:
+            if len(template_atoms) > len(compared_atoms):
+                arg_one = template_atoms.pop(0)
+                arg_two = '>>'
+                arg_three = '*'
+                errorlist.append(False)
+            else:
+                arg_one = '*'
+                arg_two = '<<'
+                arg_three = compared_atoms.pop(0)
+                errorlist.append(index)
+
+        # log message
+        if logging_mode is True:
+            print('{}\t{} {} {}'.format(index, arg_one, arg_two, arg_three))
+
+    return errorlist
+
+
+def rewrite(cartesian, path, pattern):
+    """
+    Function rewrites .mop file using given cartesian coordinates
+
+    :param cartesian: cartesian: pandas DataFrame from extract() function
+    :param path: path to file, string
+    :param pattern: regular expression for parsing lines in cartesian block, raw string
+    :return: nothing
+    """
+    # Preparation
+    coordinates = 'x', 'y', 'z'
+    columns = {'1_1': 2, '1_2': 4, '1_3': 6}
+    for coord in coordinates:
+        cartesian[coord] = cartesian[coord].astype(float)
+
+    cartesian = cartesian.round(decimals=4)
+    for column in columns:
+        cartesian.insert(columns[column], column, 1, True)
+
+    # rewrite .mop
+    flag = True
+    with open(path, 'r') as old, open(path + '_tmp', 'a') as new:
+        for line in old:
+            if re.match(pattern, line) is None:
+                new.write(line)
+            elif re.match(pattern, line) and flag is True:
+                new.writelines(cartesian.to_string(header=False, index=False))
+                new.write('\n')
+                flag = False
+
+    # Rewrite
+    os.remove(path)
+    os.rename(path + '_tmp', path)
+
+
+def named(path, pattern):
+    """
+    Function takes path to file and return its name.
+
+    :param path: path to file, string
+    :param pattern: regular expression for parsing file names, raw string
+    :return: name of the file, string
+    """
+    return re.findall(pattern, path)[0]
+
+
 def charged(path, pattern=r'.*CHARGE ON SYSTEM = +\+?(\-?\d+).*'):
     """
     Function takes path to .out file and return molecule charge
@@ -305,16 +441,6 @@ def charged(path, pattern=r'.*CHARGE ON SYSTEM = +\+?(\-?\d+).*'):
         charges = list(re.findall(pattern, (p.read())))
 
     return str(charges[-1])
-
-
-def named(path):
-    """
-    Function takes path to .out file and return its name
-
-    :param path:  path to file, string
-    :return: name of the file, string
-    """
-    return re.findall(r'.*(test\d+)\.out', path)[0]
 
 
 def commented(path):
