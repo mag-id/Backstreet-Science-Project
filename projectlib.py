@@ -1,4 +1,74 @@
 
+# TODO: write doc for initialization funcs
+
+import pathlib
+import pybel
+import json
+
+
+def deconstruct(path: str) -> (str, str, str):
+    """"""
+    pop = pathlib.Path(path)
+
+    folder = pop.parent
+    stem = pop.stem
+    suffix = pop.suffix
+
+    return str(folder), stem, suffix
+
+
+def construct(folder: str = pathlib.Path.cwd(), stem: str = '', suffix: str = '') -> str:
+    """"""
+    folder = pathlib.Path(folder)
+    name = pathlib.Path(stem + suffix)
+
+    return str(pathlib.Path.joinpath(folder, name))
+
+
+def create(path: str) -> True:
+    """"""
+    path = pathlib.Path(path)
+    pathlib.Path.mkdir(path, parents=True, exist_ok=False)
+    return True
+
+
+def convert(inp_type: str, inp_path: str, out_type: str, out_path: str) -> True:
+    """"""
+    inp = next(pybel.readfile(inp_type, inp_path))
+    out = pybel.Outputfile(out_type, out_path, overwrite=False)
+    out.write(inp)
+    return True
+
+
+def confslice(inp_type: str, inp_path: str, out_type: str, out_path: str) -> True:
+    """"""
+    for number, structure in enumerate(pybel.readfile(inp_type, inp_path)):
+
+        path, stem, suffix = deconstruct(out_path)
+        new_path = construct(path, f'{stem}_{number}', suffix)
+
+        conformer = pybel.Outputfile(out_type, new_path, overwrite=False)
+        conformer.write(structure)
+
+    return True
+
+
+def json_save(path: str, dictionary: dict) -> True:
+    """"""
+    with open(path, 'a') as f:
+        json.dump(dictionary, f)
+    return True
+
+
+def json_load(path: str) -> dict:
+    """"""
+    with open(path) as f:
+        dictionary = json.load(f)
+    return dictionary
+
+
+# TODO: to refactor out-to-mop and clean-and-rewrite funcs
+
 import os
 import re
 import pandas
