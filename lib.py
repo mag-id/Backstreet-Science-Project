@@ -1,8 +1,7 @@
 
-import pandas
-import sys
 import os
 import re
+import pandas
 
 
 def find(directory, slash='/', pattern=r'.+\.out'):
@@ -171,31 +170,3 @@ def rewrite(cartesian, path, pattern):
     # Rewrite
     os.remove(path)
     os.rename(path + '_tmp', path)
-
-
-if __name__ == '__main__':
-
-    # directories
-    template_path = str(sys.argv[1])
-    workdir = str(sys.argv[2])
-
-    # arguments for extract()
-    mop_pattern = r'\s+([a-zA-Z]*)\s+(\-?\d+\.\d+)\s+\d\s+(\-?\d+\.\d+)\s+\d\s+(\-?\d+\.\d+)\s+\d\s+'
-    mop_columns = 'atom_name', 'x', 'y', 'z'
-
-    template = extract(template_path, pattern=mop_pattern, columns=mop_columns)
-
-    for path in find(workdir, pattern=r'.+\.mop'):
-
-        file = extract(path, pattern=mop_pattern, columns=mop_columns)
-
-        # Initialize labels lists
-        file_labels = list(file['atom_name'])
-        template_labels = list(template['atom_name'])
-
-        # Check and drop
-        for string in hardcheck(template_labels, file_labels):
-            file = file.drop(string)
-
-        # Rewrite
-        rewrite(file, path, pattern=mop_pattern)

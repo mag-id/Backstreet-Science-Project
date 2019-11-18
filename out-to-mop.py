@@ -3,21 +3,6 @@ import re
 import pandas
 
 
-def find(directory, slash='/', pattern=r'.+\.out'):
-    """
-    Function to yield path for my_test.out file(s) by default.
-
-    :param directory: path to the start directory, string
-    :param slash: the path delimiter, '/' by default, string
-    :param pattern: regular expression for parsing file names, was determined by default, raw string
-    :return: string containing path to file like 'directory/subdirectory/my_test.out'
-    """
-    for directory, subdirectories, files in os.walk(directory):
-        for file in files:
-            if re.findall(pattern, str(file)):
-                yield str(directory + slash + file)
-
-
 def extract(path,
             top_flag='CARTESIAN COORDINATES',
             bottom_flag='Empirical Formula:',
@@ -138,32 +123,3 @@ def commented(path):
     :return: comment, string
     """
     return 'Conformer ' + re.findall(r'.*test(\d+)\.out', path)[0]
-
-
-if __name__ == '__main__':
-
-    import sys
-
-    directory = str(sys.argv[1])
-
-    os.mkdir(directory + '/SP')
-    os.mkdir(directory + '/SP/_MOPs')
-    os.mkdir(directory + '/SP/_CSVs')
-
-    mop_dir = directory + '/SP/_MOPs/'
-    csv_dir = directory + '/SP/_CSVs/'
-
-    print(mop_dir, 'created')
-    print(csv_dir, 'created')
-
-    print('start')
-
-    for path in find(directory, pattern=r'test\d+\.out'):
-        cartesian = extract(path)
-        charge = charged(path)
-        name = named(path)
-        comment = commented(path)
-        save(cartesian, charge, name, comment, mop_dir=mop_dir, csv_dir=csv_dir)
-        print(path, 'is processed...')
-
-    print('done')
