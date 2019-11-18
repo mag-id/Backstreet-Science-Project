@@ -170,3 +170,88 @@ def rewrite(cartesian, path, pattern):
     # Rewrite
     os.remove(path)
     os.rename(path + '_tmp', path)
+
+
+def save(cartesian, charge, name, comment='',
+         mop_dir=str(os.getcwd()), csv_dir=str(os.getcwd()),
+         mop_file=True, csv_file=True):
+    """
+    Function write the pandas DataFrame into the MOPAC input file .mop format
+    and into .csv file for the subsequent MOPAC calculations
+
+    Write 'name'.mop and 'name'.csv files into 'mop_dir' and 'csv_dir' directories
+
+    Returns nothing
+
+    :param cartesian: pandas DataFrame from extract() function
+    :param charge: specify charge of the molecule, string
+    :param name: name of the file from named() function, string
+    :param comment: add comment into .mop input file, empty by default, string
+    :param mop_dir: path to the directory to save .mop files, current work directory by default, string
+    :param csv_dir: path to the directory to save .csv files, current work directory by default, string
+    :param mop_file: save .mop file, True by default, bool
+    :param csv_file: save .csv file, True by default, bool
+    :return: nothing
+    """
+    # Preparation
+    del cartesian['num']
+    coordinates = 'x', 'y', 'z'
+    columns = {'1_1': 2, '1_2': 4, '1_3': 6}
+    for coord in coordinates:
+        cartesian[coord] = cartesian[coord].astype(float)
+
+    # .mop block
+    if mop_file is True:
+        cartesian = cartesian.round(decimals=5)
+        for column in columns:
+            cartesian.insert(columns[column], column, 0, True)
+
+        # .mop constructor
+        with open(mop_dir + 'sp_' + name + '.mop', 'a') as mop:
+            mop.writelines('AUX LARGE CHARGE=' + charge + ' SINGLET NOOPT PM6-DH2X' + '\n')
+            mop.writelines(comment + '\n'*2)
+            mop.writelines(cartesian.to_string(header=False, index=False))
+            mop.writelines('\n'*2)
+
+    # .csv block
+    if csv_file is True:
+        cartesian = cartesian.round(decimals=4)
+        for column in columns:
+            if mop_file is True:
+                del cartesian[column]
+            cartesian.insert(columns[column], column, 1, True)
+        cartesian.to_csv(csv_dir + name + '.csv')
+
+
+def charged(path, pattern=r'.*CHARGE ON SYSTEM = +\+?(\-?\d+).*'):
+    """
+    Function takes path to .out file and return molecule charge
+
+    :param path: path to file, string
+    :param pattern: regular expression for parsing molecule charge value, was determined by default, raw string
+    :return: last element of the list as string
+    """
+    with open(path, 'r') as p:
+        charges = list(re.findall(pattern, (p.read())))
+
+    return str(charges[-1])
+
+
+def named(path):
+    """
+    Function takes path to .out file and return its name
+
+    :param path:  path to file, string
+    :return: name of the file, string
+    """
+    return re.findall(r'.*(test\d+)\.out', path)[0]
+
+
+def commented(path):
+    """
+    Function takes path to .out file and return comment
+
+    :param path: path to file, string
+    :return: comment, string
+    """
+    return 'Conformer ' + re.findall(r'.*test(\d+)\.out', path)[0]
