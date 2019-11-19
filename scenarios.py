@@ -1,9 +1,15 @@
 
+import klick
+import projectlib as my
+
+'''
 import os
 import sys
 import projectlib as pl
 
-'''out-to-mop scenario'''
+#
+# out-to-mop scenario
+#
 
 directory = str(sys.argv[1])
 
@@ -30,7 +36,9 @@ for path in pl.find(directory, pattern=r'test\d+\.out'):
 print('done')
 
 
-'''clean-and-write scenario'''
+#
+# clean-and-write scenario
+#
 
 # directories
 template_path = str(sys.argv[1])
@@ -58,7 +66,9 @@ for path in pl.find(workdir, pattern=r'.+\.mop'):
     pl.rewrite(file, path, pattern=mop_pattern)
 
 
-'''initialization scenario'''
+#
+# initialization scenario
+#
 
 # deconstruct path to molecule
 path, stem, suffix = pl.deconstruct(str(sys.argv[1]))
@@ -80,7 +90,6 @@ pl.create(confdir)
 
 # ...
 
-'''
 # slice multiple-structure file to singe-structure file
 pl.confslice('sdf', pl.construct(confdir, stem+'_conformers', '.sdf'),
           'sdf', pl.construct(confdir, stem+'_conformer', '.sdf'))

@@ -1,13 +1,21 @@
 
-# TODO: write doc for initialization funcs
+from os import walk, remove, rename
+from copy import deepcopy
 
 import pathlib
+import pandas
 import pybel
 import json
+import re
 
 
 def deconstruct(path: str) -> (str, str, str):
-    """"""
+    """
+    The function deconstructs the path to the file into folder, stem, and suffix and returns them as strings.
+
+    :param path: a path to file, string
+    :return: str(folder), str(stem), str(suffix)
+    """
     pop = pathlib.Path(path)
 
     folder = pop.parent
@@ -17,8 +25,17 @@ def deconstruct(path: str) -> (str, str, str):
     return str(folder), stem, suffix
 
 
-def construct(folder: str = pathlib.Path.cwd(), stem: str = '', suffix: str = '') -> str:
-    """"""
+def construct(folder: str = str(pathlib.Path.cwd()), stem: str = '', suffix: str = '') -> str:
+    """
+    The function constructs the path to the file from the path to the folder as string, stem, and suffix.
+    By default folder is defined as str(pathlib.Path.cwd()), stem and suffix as empty strings ('').
+    Returns path to file as a string.
+
+    :param folder: a path to folder, str
+    :param stem: name of a file, str
+    :param suffix: suffix of a file, str
+    :return: str
+    """
     folder = pathlib.Path(folder)
     name = pathlib.Path(stem + suffix)
 
@@ -26,22 +43,48 @@ def construct(folder: str = pathlib.Path.cwd(), stem: str = '', suffix: str = ''
 
 
 def create(path: str) -> True:
-    """"""
+    """
+    The function creates the path.
+
+    :param path: path, str
+    :return: True, bool
+    """
     path = pathlib.Path(path)
     pathlib.Path.mkdir(path, parents=True, exist_ok=False)
+
     return True
 
 
 def convert(inp_type: str, inp_path: str, out_type: str, out_path: str) -> True:
-    """"""
+    """
+    The function takes the file according to the OpenBabel input type from the input path
+    and converts it into the file according to the OpenBabel output type into output path.
+
+    :param inp_type: type of the input file according to the OpenBabel, str
+    :param inp_path: path to the input file, str
+    :param out_type: type of the output file according to the OpenBabel, str
+    :param out_path: path to the writing of the output file
+    :return: True
+    """
     inp = next(pybel.readfile(inp_type, inp_path))
     out = pybel.Outputfile(out_type, out_path, overwrite=False)
     out.write(inp)
+
     return True
 
 
 def confslice(inp_type: str, inp_path: str, out_type: str, out_path: str) -> True:
-    """"""
+    """
+    The function slices the file of the OpenBabel type with multiple structures
+    to the new files of the OpenBabel type with single structures.
+    New files are named according to stem_number.suffix rule.
+
+    :param inp_type: type of the input file according to the OpenBabel, str
+    :param inp_path: a path to the input file, str
+    :param out_type: type of the output files according to the OpenBabel, str
+    :param out_path: a path to the writing of the output files
+    :return: True
+    """
     for number, structure in enumerate(pybel.readfile(inp_type, inp_path)):
 
         path, stem, suffix = deconstruct(out_path)
@@ -54,86 +97,95 @@ def confslice(inp_type: str, inp_path: str, out_type: str, out_path: str) -> Tru
 
 
 def json_save(path: str, dictionary: dict) -> True:
-    """"""
+    """
+    The function saves python dictionary at JSON format to the file according to the path, str.
+
+    :param path: the path to the file, str
+    :param dictionary: dict
+    :return: True
+    """
     with open(path, 'a') as f:
         json.dump(dictionary, f)
+
     return True
 
 
 def json_load(path: str) -> dict:
-    """"""
+    """
+    The function returns Python dictionary from JSON.
+
+    :param path: the path to the JSON file, str
+    :return: dict
+    """
     with open(path) as f:
         dictionary = json.load(f)
+
     return dictionary
 
 
-# TODO: to refactor out-to-mop and clean-and-rewrite funcs
-
-import pandas
-import copy
-import os
-import re
-
-
-def find(directory, slash='/', pattern=r'.+\.out'):
+def find(directory: str, slash: str = '/', pattern: str = r'.+\.out') -> str:
     """
-    Function to yield path for my_test.out file(s) by default.
+    The function to yield path for my_test.out file(s) by default.
 
     :param directory: path to the start directory, string
     :param slash: the path delimiter, '/' by default, string
     :param pattern: regular expression for parsing file names, was determined by default, raw string
     :return: string containing path to file like 'directory/subdirectory/my_test.out'
     """
-    for directory, subdirectories, files in os.walk(directory):
+
+    for directory, subdirectories, files in walk(directory):
         for file in files:
             if re.findall(pattern, str(file)):
                 yield str(directory + slash + file)
 
 
-def extract(path,
-            top_flag='first_line',
-            bottom_flag='last_line',
-            pattern=r'([\d]*)\s+([a-zA-Z]*)\s+(\-?\d+\.\d+)\s+(\-?\d+\.\d+)\s+(\-?\d+\.\d+)',
-            columns=('num', 'atom_name', 'x', 'y', 'z')):
+def xyzextract(
+        path: str, start: str = 'start', end: str = 'end',
+        pattern: str = r'([\d]*)\s+([a-zA-Z]*)\s+(\-?\d+\.\d+)\s+(\-?\d+\.\d+)\s+(\-?\d+\.\d+)',
+        columns: str = ('num', 'atom_name', 'x', 'y', 'z')
+            ) -> pandas.DataFrame or str:
     """
-    Function is extract cartesian coordinates.
+    The function is extract cartesian coordinates.
 
     Returns pandas DataFrame with columns where:
     'num' is atom number
     'atom_name' is chemical symbol
     'x', 'y', 'z' are Cartesian coordinates respectively
+    Returns string with path if start or stop parameters do not found
 
     :param path: path to file, string
-    :param top_flag: string(s) above of the last cartesian block,
-    used 'first_line' by default takes first line in file, string
-    :param bottom_flag: string(s) below of the last cartesian block,
-    used 'last_line' by default takes last line in file, string
+    :param start: string(s) above of the last cartesian block,
+    used 'start' by default takes first line in file, string
+    :param end: string(s) below of the last cartesian block,
+    used 'end' by default takes last line in file, string
     :param pattern: regular expression for parsing lines in cartesian block, was determined by default, raw string
     :param columns: the columns to passed for pandas DataFrame formation, tuple with strings
-    :return: pandas DataFrame
+    :return: pandas DataFrame or string
     """
-    top = int()
-    bottom = int()
-    rows = list()
-
     # flags counter
+    top, bottom = int, int
     with open(path, 'r') as p:
         for num, line in enumerate(p, 1):
 
-            # top_flag block
-            if top_flag is 'first_line':
+            # top_flag
+            if start == 'start':
                 top = 1
-            elif top_flag in line:
+            elif start in line:
                 top = num
+            else:
+                return f'start={start} not found for {path}'
 
-            # bottom_flag block
-            if bottom_flag is 'last_line':
+            # bottom_flag
+            if end == 'end':
                 bottom = num
-            elif bottom_flag in line:
+            elif end in line:
                 bottom = num
+            else:
+                return f'start={end} not found for {path}'
 
     # strings extraction
     with open(path, 'r') as p:
+        rows = list
         for num, line in enumerate(p, 1):
             if (top <= num) and (bottom >= num):
                 rows += re.findall(pattern, line)
@@ -142,18 +194,18 @@ def extract(path,
     return pandas.DataFrame(rows, columns=columns)
 
 
-def save(cartesian, charge, name, comment='',
-         mop_dir=str(os.getcwd()), csv_dir=str(os.getcwd()),
-         mop_file=True, csv_file=True):
+def xyz2mop(
+        dataframe: pandas.DataFrame, charge: str, name: str, comment: str = '',
+        mop_dir: str = str(pathlib.Path.cwd()), csv_dir: str = str(pathlib.Path.cwd()),
+        mop_file=True, csv_file=True
+        ) -> True:
     """
-    Function write the pandas DataFrame into the MOPAC input file .mop format
+    The function write the pandas DataFrame into the MOPAC input file .mop format
     and into .csv file for the subsequent MOPAC calculations
 
     Write 'name'.mop and 'name'.csv files into 'mop_dir' and 'csv_dir' directories
 
-    Returns nothing
-
-    :param cartesian: pandas DataFrame from extract() function
+    :param dataframe: pandas DataFrame from extract() function
     :param charge: specify charge of the molecule, string
     :param name: name of the file from named() function, string
     :param comment: add comment into .mop input file, empty by default, string
@@ -161,42 +213,44 @@ def save(cartesian, charge, name, comment='',
     :param csv_dir: path to the directory to save .csv files, current work directory by default, string
     :param mop_file: save .mop file, True by default, bool
     :param csv_file: save .csv file, True by default, bool
-    :return: nothing
+    :return: True
     """
     # Preparation
-    del cartesian['num']
+    del dataframe['num']
     coordinates = 'x', 'y', 'z'
     columns = {'1_1': 2, '1_2': 4, '1_3': 6}
     for coord in coordinates:
-        cartesian[coord] = cartesian[coord].astype(float)
+        dataframe[coord] = dataframe[coord].astype(float)
 
     # .mop block
     if mop_file is True:
-        cartesian = cartesian.round(decimals=5)
+        dataframe = dataframe.round(decimals=5)
         for column in columns:
-            cartesian.insert(columns[column], column, 0, True)
+            dataframe.insert(columns[column], column, 0, True)
 
         # .mop constructor
         with open(mop_dir + 'sp_' + name + '.mop', 'a') as mop:
             mop.writelines('AUX LARGE CHARGE=' + charge + ' SINGLET NOOPT PM6-DH2X' + '\n')
             mop.writelines(comment + '\n'*2)
-            mop.writelines(cartesian.to_string(header=False, index=False))
+            mop.writelines(dataframe.to_string(header=False, index=False))
             mop.writelines('\n'*2)
 
     # .csv block
     if csv_file is True:
-        cartesian = cartesian.round(decimals=4)
+        cartesian = dataframe.round(decimals=4)
         for column in columns:
             if mop_file is True:
                 del cartesian[column]
             cartesian.insert(columns[column], column, 1, True)
         cartesian.to_csv(csv_dir + name + '.csv')
 
+    return True
 
-def softcheck(template=list(), compared=list(), logging_mode=False):
+
+def softcheck(template: list, compared: list, logging_mode=False) -> True or list:
     """
-    Function is check elements of the template's list and compared list,
-    returns list of the tuples with 'equality' (str) and 'index' (int) where:
+    The function is check elements of the template's list and compared list,
+    returns True or list of the tuples with 'equality' (str) and 'index' (int) where:
 
     logging_mode=True print all cases in format 'index, element, equality, element,' where equality means:
     '<<' that the compared element is redundant and template element is absent
@@ -207,10 +261,10 @@ def softcheck(template=list(), compared=list(), logging_mode=False):
     :param template: pandas DataFrame
     :param compared: pandas DataFrame
     :param logging_mode: print log
-    :return: list of the tuples with string and integer
+    :return: True or list of the tuples with string and integer
     """
-    template = copy.deepcopy(template)
-    compared = copy.deepcopy(compared)
+    template = deepcopy(template)
+    compared = deepcopy(compared)
 
     if len(template) >= len(compared):
         indexes = range(len(template))
@@ -247,7 +301,7 @@ def softcheck(template=list(), compared=list(), logging_mode=False):
             errors.append((equality, index))
 
         if logging_mode is True:
-            print('{} {} {} {}'.format(index, template_label, equality, compared_label))
+            print(f'{index} {template_label} {equality} {compared_label}')
 
     if errors is None:
         return True
@@ -255,9 +309,9 @@ def softcheck(template=list(), compared=list(), logging_mode=False):
         return errors
 
 
-def hardcheck(template=list(), compared=list(), logging_mode=False):
+def hardcheck(template: list, compared: list, logging_mode=False) -> str or IndexError or ValueError:
     """
-    Function is check elements of the template's list and compared list,
+    The function is check elements of the template's list and compared list,
     returns index of the missing element of the template's list, int.
 
     Raises IndexError when compared list has less element, than template.
@@ -307,7 +361,7 @@ def hardcheck(template=list(), compared=list(), logging_mode=False):
                 template_label = '*'
                 compared_label = compared[index]
 
-        message = '{} {} {} {}'.format(index, template_label, equality, compared_label)
+        message = f'{index} {template_label} {equality} {compared_label}'
 
         if logging_mode is True:
             print(message)
@@ -315,30 +369,30 @@ def hardcheck(template=list(), compared=list(), logging_mode=False):
             if equality == '<<':
                 yield index
             elif equality == '>>':
-                raise IndexError('less labels at ' + message + ', try logging_mode=True')
+                raise IndexError(f'less labels at {message} , try logging_mode=True')
             elif equality == '!=':
-                raise ValueError('different labels at ' + message + ', try logging_mode=True')
+                raise ValueError(f'different labels at {message} , try logging_mode=True')
 
 
-def atomdrop(template=pandas.DataFrame(), compared=pandas.DataFrame(), logging_mode=False):
+def atomdrop(template: pandas.DataFrame(), compared: pandas.DataFrame(), logging_mode=False) -> list:
     """
-        Function is check elements of the template's list and compared list,
-        returns list with indexes (int) of the conflicting elements,
-        also can returns list with indexes (int) and False (bool) within,
-        if compared list has less element, than template.
+    The function is check elements of the template's list and compared list,
+    returns list with indexes (int) of the conflicting elements,
+    also can returns list with indexes (int) and False (bool) within,
+    if compared list has less element, than template.
 
-        logging_mode=True print all cases in format 'element, equality, element, template's index',
-        where equality means:
-            '<<' that the compared element is redundant and template element is absent
-            '>>' the template element is redundant, while compared element is absent
-            '!=' the elements are different
-            '==' the elements are the same
+    logging_mode=True print all cases in format 'element, equality, element, template's index',
+    where equality means:
+        '<<' that the compared element is redundant and template element is absent
+        '>>' the template element is redundant, while compared element is absent
+        '!=' the elements are different
+        '==' the elements are the same
 
-        :param template: pandas DataFrame
-        :param compared: pandas DataFrame
-        :param logging_mode: print log, disable ValueError
-        :return: list with integers and bool within
-        """
+    :param template: pandas DataFrame
+    :param compared: pandas DataFrame
+    :param logging_mode: print log, disable ValueError
+    :return: list with integers and bool within
+    """
     # Initialize lists
     template_atoms = list(template['atom_name'])
     compared_atoms = list(compared['atom_name'])
@@ -378,19 +432,19 @@ def atomdrop(template=pandas.DataFrame(), compared=pandas.DataFrame(), logging_m
 
         # log message
         if logging_mode is True:
-            print('{}\t{} {} {}'.format(index, arg_one, arg_two, arg_three))
+            print(f'{index}\t{arg_one} {arg_two} {arg_three}')
 
     return errorlist
 
 
-def rewrite(cartesian, path, pattern):
+def xyzrewrite(cartesian: pandas.DataFrame, path: str, pattern: str) -> True:
     """
-    Function rewrites .mop file using given cartesian coordinates
+    The function rewrites .mop file using given cartesian coordinates
 
     :param cartesian: cartesian: pandas DataFrame from extract() function
     :param path: path to file, string
     :param pattern: regular expression for parsing lines in cartesian block, raw string
-    :return: nothing
+    :return: True
     """
     # Preparation
     coordinates = 'x', 'y', 'z'
@@ -414,13 +468,15 @@ def rewrite(cartesian, path, pattern):
                 flag = False
 
     # Rewrite
-    os.remove(path)
-    os.rename(path + '_tmp', path)
+    remove(path)
+    rename(path + '_tmp', path)
+
+    return True
 
 
-def named(path, pattern):
+def named(path: str, pattern: str) -> str:
     """
-    Function takes path to file and return its name.
+    The function takes path to file and return its name.
 
     :param path: path to file, string
     :param pattern: regular expression for parsing file names, raw string
@@ -429,9 +485,9 @@ def named(path, pattern):
     return re.findall(pattern, path)[0]
 
 
-def charged(path, pattern=r'.*CHARGE ON SYSTEM = +\+?(\-?\d+).*'):
+def charged(path: str, pattern: str = r'.*CHARGE ON SYSTEM = +\+?(\-?\d+).*') -> str:
     """
-    Function takes path to .out file and return molecule charge
+    The function takes path to .out file and return molecule charge
 
     :param path: path to file, string
     :param pattern: regular expression for parsing molecule charge value, was determined by default, raw string
@@ -443,9 +499,9 @@ def charged(path, pattern=r'.*CHARGE ON SYSTEM = +\+?(\-?\d+).*'):
     return str(charges[-1])
 
 
-def commented(path):
+def commented(path: str) -> str:
     """
-    Function takes path to .out file and return comment
+    The function takes path to .out file and return comment
 
     :param path: path to file, string
     :return: comment, string
