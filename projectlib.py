@@ -42,15 +42,16 @@ def construct(folder: str = str(pathlib.Path.cwd()), stem: str = '', suffix: str
     return str(pathlib.Path.joinpath(folder, name))
 
 
-def create(path: str) -> True:
+def create(*paths: str) -> True:
     """
     The function creates the path.
 
-    :param path: path, str
+    :param paths: path(s), str
     :return: True, bool
     """
-    path = pathlib.Path(path)
-    pathlib.Path.mkdir(path, parents=True, exist_ok=False)
+    for path in paths:
+        path = pathlib.Path(path)
+        pathlib.Path.mkdir(path, parents=True, exist_ok=False)
 
     return True
 
@@ -142,7 +143,7 @@ def find(directory: str, slash: str = '/', pattern: str = r'.+\.out') -> str:
 def xyzextract(
         path: str, start: str = 'start', end: str = 'end',
         pattern: str = r'([\d]*)\s+([a-zA-Z]*)\s+(\-?\d+\.\d+)\s+(\-?\d+\.\d+)\s+(\-?\d+\.\d+)',
-        columns: str = ('num', 'atom_name', 'x', 'y', 'z')
+        columns: tuple = ('num', 'atom_name', 'x', 'y', 'z')
             ) -> pandas.DataFrame or str:
     """
     The function is extract cartesian coordinates.
@@ -474,17 +475,6 @@ def xyzrewrite(cartesian: pandas.DataFrame, path: str, pattern: str) -> True:
     return True
 
 
-def named(path: str, pattern: str) -> str:
-    """
-    The function takes path to file and return its name.
-
-    :param path: path to file, string
-    :param pattern: regular expression for parsing file names, raw string
-    :return: name of the file, string
-    """
-    return re.findall(pattern, path)[0]
-
-
 def charged(path: str, pattern: str = r'.*CHARGE ON SYSTEM = +\+?(\-?\d+).*') -> str:
     """
     The function takes path to .out file and return molecule charge
@@ -497,13 +487,3 @@ def charged(path: str, pattern: str = r'.*CHARGE ON SYSTEM = +\+?(\-?\d+).*') ->
         charges = list(re.findall(pattern, (p.read())))
 
     return str(charges[-1])
-
-
-def commented(path: str) -> str:
-    """
-    The function takes path to .out file and return comment
-
-    :param path: path to file, string
-    :return: comment, string
-    """
-    return 'Conformer ' + re.findall(r'.*test(\d+)\.out', path)[0]
