@@ -186,10 +186,10 @@ def xyzextract(
 
     # strings extraction
     with open(path, 'r') as p:
-        rows = list
+        rows = list()
         for num, line in enumerate(p, 1):
             if (top <= num) and (bottom >= num):
-                rows += re.findall(pattern, line)
+                rows.append(re.findall(pattern, line))
 
     # pandas DataFrame
     return pandas.DataFrame(rows, columns=columns)

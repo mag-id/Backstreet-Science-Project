@@ -1,6 +1,6 @@
 
 import sys
-import projectlib as my
+from scripts import projectlib as my
 
 '''clean-and-write script'''
 
