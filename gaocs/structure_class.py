@@ -6,77 +6,71 @@ import copy
 # TODO: write docs!
 class Structure:
     """Structure class"""
-    def __init__(self, cartesian: numpy.array, atoms: dict, name: str) -> None:
-        """"""
+    def __init__(self, cartesian: numpy.array, atoms: dict, name: str, bonds: numpy.array = None) -> None:
+        """
+        :param cartesian: the 2D numpy.array of the float numbers with size 3 columns and n rows
+        :param atoms: the dictionary with indexes as keys and atom labels as values
+        :param name: the string with the name of a structure
+        :param bonds: the 2D numpy.array of the integer numbers with size 3 columns and m rows, None by default
+        :raise IndexError if length of the 'cartesian' parameter is not equal to length of the 'atoms' parameter
+        """
         self.cartesian: numpy.array = cartesian
         self.atoms: dict = atoms
         self.name: str = name
+        self.bonds: numpy.array = bonds
 
         if len(self.cartesian) != len(self.atoms):
             raise IndexError(f'len(cartesian) != len(atoms) at {self.name}')
 
     def __add__(self, addend) -> object:
-        """"""
+        """
+        :param addend: Structure class instance
+        :raise IndexError if addend.atoms is not subset of the self.atoms
+        :return: new instance of the Structure class
+        """
+        cartesian = copy.deepcopy(self.cartesian)
+        atoms = copy.deepcopy(self.atoms)
+        name = copy.deepcopy(self.name)
+        bonds = copy.deepcopy(self.bonds)
+
         for row_index, label_index in enumerate(addend.atoms):
-            if addend.atoms[label_index] == self.atoms[label_index]:
-                self.cartesian[label_index] += addend.cartesian[row_index]
+            if addend.atoms[label_index] == atoms[label_index]:
+                cartesian[label_index] += addend.cartesian[row_index]
             else:
-                raise IndexError(f'{self.name} and {addend.name} atoms are not complementary')
-        return Structure(self.cartesian, self.atoms, self.name)
+                raise IndexError(f'{addend.name}.atoms is not subset of the {name}.atoms')
+        return Structure(cartesian, atoms, name, bonds)
 
     def __sub__(self, addend) -> object:
-        """"""
+        """
+        :param addend: addend: Structure class instance
+        :raise IndexError if addend.atoms is not subset of the self.atoms
+        :return: new instance of the Structure class
+        """
+        cartesian = copy.deepcopy(self.cartesian)
+        atoms = copy.deepcopy(self.atoms)
+        name = copy.deepcopy(self.name)
+        bonds = copy.deepcopy(self.bonds)
+
         for row_index, label_index in enumerate(addend.atoms):
-            if addend.atoms[label_index] == self.atoms[label_index]:
-                self.cartesian[label_index] -= addend.cartesian[row_index]
+            if addend.atoms[label_index] == atoms[label_index]:
+                cartesian[label_index] -= addend.cartesian[row_index]
             else:
-                raise IndexError(f'{self.name} and {addend.name} atoms are not complementary')
-        return Structure(self.cartesian, self.atoms, self.name)
+                raise IndexError(f'{addend.name}.atoms is not subset of the {name}.atoms')
+        return Structure(cartesian, atoms, name, bonds)
 
     def show(self) -> list:
-        """"""
-        lines = list([self.name])
+        """
+        Show the data which stored into instance of the Structure class
+        :return: list
+        """
+        lines = [[self.name], []]
+
         for row_index, label_index in enumerate(self.atoms):
-            lines.append(f'{label_index} {self.atoms[label_index]} {self.cartesian[row_index]}')
+            lines[0].append(f'{label_index} {self.atoms[label_index]} {self.cartesian[row_index]}')
+
+        if self.bonds is not None:
+            lines[1].append(self.bonds)
+        else:
+            lines[1].append('None')
+
         return lines
-
-
-# For future tests
-"""
-mol = Structure(
-    numpy.array(
-        [[-1.0, -1.0, 0.0],
-         [0.0, 0.0, 0.0],
-         [1.0, -1.0, 0.0]]),
-    {0: 'H', 1: 'O', 2: 'H'},
-    'mol')
-
-iso_one = Structure(
-    numpy.array(
-        [[0.0, 0.0, 0.0],
-         [0.0, 2.0, 0.0]]),
-    {0: 'H', 2: 'H'},
-    'iso_one')
-
-iso_two = Structure(
-    numpy.array(
-        [[0.0, 0.0, 0.0],
-         [0.0, 1.0, 0.0]]),
-    {0: 'H', 2: 'H'},
-    'iso_two')
-
-a = 1
-b = 1
-c = a + b
-print(c, a)
-
-structures = [mol, iso_one, iso_two]
-for structure in structures:
-    print(structure.show())
-
-mol2_1 = mol + iso_one
-mol2_2 = mol + iso_two
-
-print(mol2_1.show())
-print(mol2_2.show())
-"""
