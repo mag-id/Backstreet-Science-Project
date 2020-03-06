@@ -60,7 +60,7 @@ class Structure:
 
     def show(self) -> list:
         """
-        Show the data which stored into instance of the Structure class
+        Show the new which stored into instance of the Structure class
         :return: list
         """
         lines = [[self.name], []]
